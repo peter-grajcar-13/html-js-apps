@@ -1,0 +1,115 @@
+<html>
+	<head>
+		<meta charset="utf-8" /> 
+		<style>
+			canvas {border: 1px solid black; }
+			input {width: 800px;}
+		</style>
+	</head>
+	<input type="range" id="hour" min="0" max="24" step="0.05" onmousemove="draw(parseFloat(this.value),parseInt(document.getElementById('day').value));"><br>
+	<input type="range" id="day" min="0" max="365" step="1" onmousemove="draw(parseFloat(document.getElementById('hour').value),parseInt(this.value));"><br>
+	<body>
+		<canvas id="canvas" width="800" height="600"></canvas>
+		<script>
+			var canvas = document.getElementById("canvas");
+			var c = canvas.getContext("2d");
+
+			/*/
+			dt = difference between local time(LT) and GMT
+			lt = local time(LT)
+			d = days sincee start of the year
+			/*/
+
+			function sin(a) {
+				return Math.sin( (a/360)*2*Math.PI );
+			}
+			function cos(a) {
+				return Math.cos( (a/360)*2*Math.PI );
+			}
+
+			function LSTM ( dt ){
+				return 15*dt;
+			}
+			function EoT ( d ) {
+				B = (360/365)*(d - 81);
+				return 9.87*sin(2*B)-7.53*cos(B)-1.5*sin(B);
+			}
+			function TC ( longitude, dt, d ){
+				return 4*(longitude - LSTM(dt))+EoT(d);
+			}
+			function LST ( lt, longitude, dt, d ){
+				return lt + (TC(longitude, dt, d)/60)
+			}
+			function HRA ( lt, longitude, dt, d ){
+				return 15*(LST(lt, longitude, dt, d)-12);
+			}
+			function DEC (d) {
+				return 23.44*sin( (360/365)*(d-81) );
+			}
+
+			function Elevation ( lt, longitude, latitude, dt, d ){
+				return (180/Math.PI)*Math.asin( sin(DEC(d))*sin(latitude)+cos(DEC(d))*cos(latitude)*cos(HRA ( lt, longitude, dt, d )) );
+			}
+			function Azimuth ( lt, longitude,latitude, dt, d ){
+				if(HRA ( lt, longitude, dt, d ) > 0)
+					return (180/Math.PI)*Math.acos(( sin(DEC(d))*cos(latitude)-cos(DEC(d))*sin(latitude)*cos(HRA ( lt, longitude, dt, d )) )/( cos(Elevation( lt, longitude, latitude, dt, d )) ));
+				else
+					return 360-(180/Math.PI)*Math.acos(( sin(DEC(d))*cos(latitude)-cos(DEC(d))*sin(latitude)*cos(HRA ( lt, longitude, dt, d )) )/( cos(Elevation( lt, longitude, latitude, dt, d )) ));
+			}
+
+
+
+			var lon = 17.0483;
+			var lat = 48.1611;
+			function draw(time,day){
+				c.clearRect(0,0,canvas.width,canvas.height);
+
+				c.fillText( ("0" + Math.floor(time)).slice(-2) + ":" + ("0" +Math.round((time-Math.floor(time))*60)).slice(-2),10,10);
+
+				var now = new Date();
+				var date = new Date(now.getFullYear(), 0, 0);
+				date.setTime(date.getTime() + day * 24*60*60*1000);
+				c.fillText( date,10,30);
+
+				var gmt = date.getTimezoneOffset()/-60;
+
+				var alt = Elevation(time,lon,lat,gmt,day);
+				var az = Azimuth(time,lon,lat,gmt,day);
+				for(var t = 0; t < 24; t++){
+					var aalt = Elevation(t,lon,lat,gmt,day);
+					var aaz = Azimuth(t,lon,lat,gmt,day);
+					if(aalt > 0){
+						xx = 200*cos( aaz+180 );
+						yy = 200*sin( aaz+180 );
+						c.lineWidth = 1;
+						c.strokeStyle = "gray";
+						c.beginPath();
+						c.moveTo(canvas.width/2, canvas.height/2);
+						c.lineTo(canvas.width/2 + xx, canvas.height/2 - yy);
+						c.closePath();
+						c.stroke();
+					}
+				}
+				if(alt > 0){
+					x = (50/(sin(alt)/cos(alt)))*cos( az+180 );
+					y = (50/(sin(alt)/cos(alt)))*sin( az+180 );
+
+					c.beginPath();
+					c.moveTo(canvas.width/2, canvas.height/2);
+					c.lineTo(canvas.width/2 + x, canvas.height/2 - y);
+					c.strokeStyle = "rgba(64,64,64,0.75)";
+					c.lineWidth = 12;
+					c.closePath();
+					c.stroke();
+				}
+				c.beginPath();
+				c.arc(canvas.width/2, canvas.height/2,6,0,2*Math.PI);
+				c.closePath();
+				c.fill();
+
+			}
+			draw(12,182)
+
+		</script>
+	</body>
+</html>

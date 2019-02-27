@@ -1,0 +1,524 @@
+<html>
+	<head>
+		<meta charset="utf-8">
+		<style type="text/css">
+			body {text-align:  center}
+			canvas {border: 1px solid black;}
+			input {font-size:  30px}
+			select {font-size:  30px}
+			button {font-size:  30px}
+		</style>
+		<script src="Vector.js"></script>
+		<script src="Geometry.js"></script>
+		<script src="Scroll.js"></script>
+	</head>
+	<body>
+		<select id="pt1_edge" onchange="paint()">
+			<option value="0" selected>AB</option>
+			<option value="1">BC</option>
+			<option value="2">CD</option>
+			<option value="3">AD</option>
+			<option value="4">EF</option>
+			<option value="5">FG</option>
+			<option value="6">GH</option>
+			<option value="7">EH</option>
+			<option value="8">AE</option>
+			<option value="9">BF</option>
+			<option value="10">CG</option>
+			<option value="11">DH</option>
+		</select>
+		<input type="number" value="0.5" step="0.1" id="pt1_r" onchange="paint()" /> <button onclick="document.getElementById('pt1_r').value = rnd(8, parseFloat(document.getElementById('pt1_r').value) + parseFloat(document.getElementById('pt1_r').step));paint()">+</button> <button onclick="document.getElementById('pt1_r').value = rnd(8, parseFloat(document.getElementById('pt1_r').value) - parseFloat(document.getElementById('pt1_r').step));paint()">-</button>
+		<br><br>
+		<select id="pt2_edge" onchange="paint()">
+			<option value="0">AB</option>
+			<option value="1">BC</option>
+			<option value="2">CD</option>
+			<option value="3">AD</option>
+			<option value="4">EF</option>
+			<option value="5">FG</option>
+			<option value="6">GH</option>
+			<option value="7">EH</option>
+			<option value="8" selected>AE</option>
+			<option value="9">BF</option>
+			<option value="10">CG</option>
+			<option value="11">DH</option>
+		</select>
+		<input type="number" value="0.5" step="0.1" id="pt2_r" onchange="paint()" /> <button onclick="document.getElementById('pt2_r').value = rnd(8, parseFloat(document.getElementById('pt2_r').value) + parseFloat(document.getElementById('pt2_r').step));paint()">+</button> <button onclick="document.getElementById('pt2_r').value = rnd(8, parseFloat(document.getElementById('pt2_r').value) - parseFloat(document.getElementById('pt2_r').step));paint()">-</button>
+		<br><br>
+		<select id="pt3_edge" onchange="paint()">
+			<option value="0">AB</option>
+			<option value="1">BC</option>
+			<option value="2">CD</option>
+			<option value="3">AD</option>
+			<option value="4">EF</option>
+			<option value="5">FG</option>
+			<option value="6">GH</option>
+			<option value="7">EH</option>
+			<option value="8">AE</option>
+			<option value="9">BF</option>
+			<option value="10" selected>CG</option>
+			<option value="11">DH</option>
+		</select>
+		<input type="number" value="0.5" step="0.1" id="pt3_r" onchange="paint()" /> <button onclick="document.getElementById('pt3_r').value = rnd(8, parseFloat(document.getElementById('pt3_r').value) + parseFloat(document.getElementById('pt3_r').step));paint()">+</button> <button onclick="document.getElementById('pt3_r').value = rnd(8, parseFloat(document.getElementById('pt3_r').value) - parseFloat(document.getElementById('pt3_r').step));paint()">-</button>
+		<br><br>
+		<input type="checkbox" id="fill" onchange="paint()"  /> Fill<br><br>
+		<canvas id="canvas" width="800" height="600"></canvas><br>
+		<form>
+			<input type="radio" name="p" checked="true" onchange="projection = PERSPECTIVE_PROJECTION; paint()" /> Perspective
+			<input type="radio" name="p" onchange="projection = PARALLEL_PROJECTION; paint()" /> Parallel
+		</form>
+
+		<script type="text/javascript">
+			var canvas = document.getElementById("canvas");
+			var c = canvas.getContext("2d");
+			c.fillStyle = "white";
+			c.fillRect(0,0,canvas.width,canvas.height);
+
+			//constants
+			var X_AXIS = 0;
+			var Y_AXIS = 1;
+			var Z_AXIS = 2;
+			var PERSPECTIVE_PROJECTION = 0;
+			var PARALLEL_PROJECTION = 1;
+
+			var projection = PERSPECTIVE_PROJECTION;
+			var viewPoint = new Vector3(0, 0, -2);
+
+			function get2D (v){
+				var vec = v.minus(viewPoint);
+				var a = 0.5 - 1/(Math.abs(0.1*vec.x)+2);
+				if(vec.x != 0)
+					a *= (vec.x/Math.abs(vec.x));
+				var d = 0.5 - Math.abs(1/(vec.z));
+
+				var Y = 0;
+				var X = 0;
+				switch(projection){
+					case PERSPECTIVE_PROJECTION:
+						Y = canvas.height/2 + 0.65*vec.y*((d*canvas.height) - canvas.height/2);
+						X = canvas.width/2 + (canvas.height - (d*canvas.height) - canvas.height/2)*8.5*Math.tan(a*Math.PI);
+						break;
+					case PARALLEL_PROJECTION:
+						Y = canvas.height/2 - vec.y*(canvas.height/10);
+						X = canvas.width/2 + vec.x*(canvas.height/10);
+						break;
+				}
+
+				return new Vector2(X, Y);
+			}
+
+			function rnd (dp, n){
+				return Math.round(n*Math.pow(10,dp))/Math.pow(10,dp);
+			}
+
+			c.dashedLength = 6;
+			c.dashedLine = function (v0, v1) {
+				var l = this.dashedLength;
+				var dx = v1.x - v0.x;
+				var dy = v1.y - v0.y;
+				var mag = Math.sqrt( dx*dx + dy*dy );
+				var s = l/mag;
+
+				for(var i = 0; i < mag/l-1; i += 2){
+					this.beginPath();
+					this.moveTo(v0.x + i*s*dx,v0.y + i*s*dy);
+					this.lineTo(v0.x + (i+1)*s*dx, v0.y + (i+1)*s*dy);
+					this.stroke();
+				}
+			}
+			c.solidLine = function (v0, v1) {
+					this.beginPath();
+					this.moveTo(v0.x, v0.y);
+					this.lineTo(v1.x, v1.y);
+					this.stroke();
+			}
+			c.quad = function (v0, v1, v2, v3) {
+				this.beginPath();
+				this.moveTo(v0.x, v0.y);
+				this.lineTo(v1.x, v1.y);
+				this.lineTo(v2.x, v2.y);
+				this.lineTo(v3.x, v3.y);
+				this.closePath();
+				this.fill();
+			}
+			c.triangle = function (v0, v1, v2) {
+				this.beginPath();
+				this.moveTo(v0.x, v0.y);
+				this.lineTo(v1.x, v1.y);
+				this.lineTo(v2.x, v2.y);
+				this.closePath();
+				this.fill();
+			}
+			c.polygon = function ( P ) {
+				this.beginPath();
+				for(var i = 0; i < P.length; i++){
+					for(var j = 0; j < P.length; j++){
+						if(I != j){
+							this.triangle(P[i], P[j], P[0]);
+						}
+					}
+				}
+
+			}
+			c.point = function (v) {
+				c.beginPath();
+				c.arc(v.x, v.y, 5, 0, 2*Math.PI);
+				c.fill();
+			}
+			c.cls = function (){
+				this.clearRect(0,0,canvas.width,canvas.height);
+				this.fillStyle = "white";
+				this.fillRect(0,0,canvas.width,canvas.height);
+			}
+
+
+			var theta_x = 0; var lastX = 0;
+			var theta_y = 0; var lastY = 0;
+			var theta_z = 0; var move = false;
+
+			canvas.onmouseover = function () {
+				disableScroll();
+			}
+			canvas.onmouseout = function () {
+				enableScroll();
+			}
+			canvas.onmousedown = function(e){
+				lastX = e.pageX - this.offsetLeft;
+				lastY = e.pageY - this.offsetTop;
+				move = true;
+			}
+			canvas.onmouseup = function() {
+				move = false;
+			}
+			canvas.onmousemove = function(e){
+				var X = e.pageX - this.offsetLeft;
+				var Y = e.pageY - this.offsetTop;
+
+				if(move){
+					theta_y -= (X-lastX)/300;
+					theta_x -= (Y-lastY)/300;
+				}
+				paint();
+				lastX = X;
+				lastY = Y;
+			}
+			canvas.ontouchstart = function(e){
+				disableScroll();
+				lastX = e.changedTouches[0].pageX - this.offsetLeft;
+				lastY = e.changedTouches[0].pageY - this.offsetTop;
+				move = true;
+			}
+			canvas.ontouchend = function(){
+				move = false;
+				enableScroll();
+			}
+			canvas.ontouchmove = function(e){
+				var X = e.changedTouches[0].pageX - this.offsetLeft;
+				var Y = e.changedTouches[0].pageY - this.offsetTop;
+
+				if(move){
+					theta_y -= (X-lastX)/300;
+					theta_x -= (Y-lastY)/300;
+				}
+				paint();
+				lastX = X;
+				lastY = Y;
+			}
+
+
+			function paint(){
+				c.cls();
+
+				//Points of the cube
+				var cube = [];
+				cube[0] = new Vector3(-.5, -.5, -.5);
+				cube[1] = new Vector3(.5, -.5, -.5);
+				cube[2] = new Vector3(.5, -.5, .5);
+				cube[3] = new Vector3(-.5, -.5, .5);
+				cube[4] = new Vector3(-.5, .5, -0.5);
+				cube[5] = new Vector3(.5, .5, -0.5);
+				cube[6] = new Vector3(.5, .5, 0.5);
+				cube[7] = new Vector3(-.5, .5, 0.5);
+
+				//Resize cube
+				if(projection == PARALLEL_PROJECTION){
+					for(var i = 0; i < cube.length; i++){
+						cube[i] = cube[i].times(4);
+					}
+				}
+
+				//Center of the cube
+				var S = new Vector3(0,0,0);
+				for(var i = 0; i < cube.length; i++){
+					S = S.plus(cube[i]);
+				}
+				S = S.divide(cube.length);
+
+				//Rotate
+				for(var i = 0; i < cube.length; i++){
+					cube[i] = cube[i].rotateAround(S, theta_x, theta_y, theta_z);
+				}
+
+				//Get projected points
+				_a = get2D(cube[0]);
+				_b = get2D(cube[1]);
+				_c = get2D(cube[2]);
+				_d = get2D(cube[3]);
+				_e = get2D(cube[4]);
+				_f = get2D(cube[5]);
+				_g = get2D(cube[6]);
+				_h = get2D(cube[7]);
+
+
+				function getEdge (n){
+					switch(n){
+						case 0:
+							return [ cube[0], cube[1] ];
+						case 1:
+							return [ cube[1], cube[2] ];
+						case 2:
+							return [ cube[2], cube[3] ];
+						case 3:
+							return [ cube[0], cube[3] ];
+						case 4:
+							return [ cube[4], cube[5] ];
+						case 5:
+							return [ cube[5], cube[6] ];
+						case 6:
+							return [ cube[6], cube[7] ];
+						case 7:
+							return [ cube[4], cube[7] ];
+						case 8:
+							return [ cube[0], cube[4] ];
+						case 9:
+							return [ cube[1], cube[5] ];
+						case 10:
+							return [ cube[2], cube[6] ];
+						case 11:
+							return [ cube[3], cube[7] ];
+					}
+				}
+
+				_X = parametricLine(getEdge( parseInt(document.getElementById("pt1_edge").value) )[0], getEdge(parseInt(document.getElementById("pt1_edge").value) )[1], parseFloat(document.getElementById("pt1_r").value));
+				_Y = parametricLine(getEdge(parseInt(document.getElementById("pt2_edge").value))[0], getEdge(parseInt(document.getElementById("pt2_edge").value))[1], parseFloat(document.getElementById("pt2_r").value));
+				_Z = parametricLine(getEdge(parseInt(document.getElementById("pt3_edge").value))[0], getEdge(parseInt(document.getElementById("pt3_edge").value))[1], parseFloat(document.getElementById("pt3_r").value));
+
+				c.fillStyle = "navy";
+				c.point( get2D(_X) );
+				c.point( get2D(_Y) );
+				c.point( get2D(_Z) );
+
+				P_array = [];
+				P_raw = []
+				c.fillStyle = "black";
+				I = getSegmentPlaneIntersection(cube[0], cube[1], _X, _Y, _Z);
+				if(I != null){
+					c.fillStyle = "yellow"
+					c.point( get2D( I ) );
+					P_array[P_array.length] = get2D( I );
+					P_raw[P_raw.length] = "yellow:";
+					P_raw[P_raw.length] = I;
+				}
+				I = getSegmentPlaneIntersection(cube[1], cube[2], _X, _Y, _Z);
+				if(I != null){
+					c.fillStyle = "orange"
+					c.point( get2D( I ) );
+					P_array[P_array.length] = get2D( I );
+					P_raw[P_raw.length] = "orange:";
+					P_raw[P_raw.length] = I;
+				}
+				I = getSegmentPlaneIntersection(cube[2], cube[3], _X, _Y, _Z);
+				if(I != null){
+					c.fillStyle = "black"
+					c.point( get2D( I ) );
+					P_array[P_array.length] = get2D( I );
+					P_raw[P_raw.length] = "black:";
+					P_raw[P_raw.length] = I;
+				}
+				I = getSegmentPlaneIntersection(cube[0], cube[3], _X, _Y, _Z);
+				if(I != null){
+					c.fillStyle = "brown"
+					c.point( get2D( I ) );
+					P_array[P_array.length] = get2D( I );
+					P_raw[P_raw.length] = "brown:";
+					P_raw[P_raw.length] = I;
+				}
+				I = getSegmentPlaneIntersection(cube[0], cube[4], _X, _Y, _Z);
+				if(I != null){
+					c.fillStyle = "pink"
+					c.point( get2D( I ) );
+					P_array[P_array.length] = get2D( I );
+					P_raw[P_raw.length] = "pink:";
+					P_raw[P_raw.length] = I;
+				}
+				I = getSegmentPlaneIntersection(cube[1], cube[5], _X, _Y, _Z);
+				if(I != null){
+					c.fillStyle = "grey"
+					c.point( get2D( I ) );
+					P_array[P_array.length] = get2D( I );
+					P_raw[P_raw.length] = "grey:";
+					P_raw[P_raw.length] = I;
+				}
+				I = getSegmentPlaneIntersection(cube[2], cube[6], _X, _Y, _Z);
+				if(I != null){
+					c.fillStyle = "silver"
+					c.point( get2D( I ) );
+					P_array[P_array.length] = get2D( I );
+					P_raw[P_raw.length] = "silver:";
+					P_raw[P_raw.length] = I;
+				}
+				I = getSegmentPlaneIntersection(cube[3], cube[7], _X, _Y, _Z);
+				if(I != null){
+					c.fillStyle = "lime"
+					c.point( get2D( I ) );
+					P_array[P_array.length] = get2D( I );
+					P_raw[P_raw.length] = "lime:";
+					P_raw[P_raw.length] = I;
+				}
+				I = getSegmentPlaneIntersection(cube[4], cube[5], _X, _Y, _Z);
+				if(I != null){
+					c.fillStyle = "red"
+					c.point( get2D( I ) );
+					P_array[P_array.length] = get2D( I );
+					P_raw[P_raw.length] = "red:";
+					P_raw[P_raw.length] = I;
+				}
+				I = getSegmentPlaneIntersection(cube[5], cube[6], _X, _Y, _Z);
+				if(I != null){
+					c.fillStyle = "magenta"
+					c.point( get2D( I ) );
+					P_array[P_array.length] = get2D( I );
+					P_raw[P_raw.length] = "-magenta";
+					P_raw[P_raw.length] = I;
+				}
+				I = getSegmentPlaneIntersection(cube[6], cube[7], _X, _Y, _Z);
+				if(I != null){
+					c.fillStyle = "purple"
+					c.point( get2D( I ) );
+					P_array[P_array.length] = get2D( I );
+					P_raw[P_raw.length] = "purple:";
+					P_raw[P_raw.length] = I;
+				}
+				I = getSegmentPlaneIntersection(cube[4], cube[7], _X, _Y, _Z);
+				if(I != null){
+					c.fillStyle = "green"
+					c.point( get2D( I ) );
+					P_array[P_array.length] = get2D( I );
+					P_raw[P_raw.length] = "green:";
+					P_raw[P_raw.length] = I;
+				}
+				c.fillStyle = "orange";
+				if(document.getElementById("fill").checked){
+					c.polygon(P_array);
+				}
+
+
+				//Point labels
+				c.fillStyle = "black";
+				c.font = "20px Arial";
+				c.fillText("A", _a.x-20, _a.y+20);
+				c.fillText("B", _b.x-20, _b.y+20);
+				c.fillText("C", _c.x-20, _c.y+20);
+				c.fillText("D", _d.x-20, _d.y+20);
+				c.fillText("E", _e.x-20, _e.y+20);
+				c.fillText("F", _f.x-20, _f.y+20);
+				c.fillText("G", _g.x-20, _g.y+20);
+				c.fillText("H", _h.x-20, _h.y+20);
+
+
+				function isVisible (i) {
+					if(projection == PERSPECTIVE_PROJECTION){
+						if( i != 4 && i != 5 && i != 6 && i!= 7 && getQuadIntersection(cube[i], viewPoint, cube[4], cube[5], cube[6], cube[7]) != null)
+							return false;
+						if( i != 1 && i != 2 && i != 6 && i!= 5 && getQuadIntersection(cube[i], viewPoint, cube[1], cube[2], cube[6], cube[5]) != null)
+							return false;
+						if( i != 2 && i != 3 && i != 7 && i!= 6 && getQuadIntersection(cube[i], viewPoint, cube[2], cube[3], cube[7], cube[6]) != null)
+							return false;
+						if( i != 0 && i != 1 && i != 2 && i!= 3 && getQuadIntersection(cube[i], viewPoint, cube[0], cube[1], cube[2], cube[3]) != null)
+							return false;
+						if( i != 0 && i != 3 && i != 7 && i!= 4 && getQuadIntersection(cube[i], viewPoint, cube[0], cube[3], cube[7], cube[4]) != null)
+							return false;
+						if( i != 0 && i != 1 && i != 5 && i!= 4 && getQuadIntersection(cube[i], viewPoint, cube[0], cube[1], cube[5], cube[4]) != null)
+							return false;
+
+						return true;
+					}else if(projection == PARALLEL_PROJECTION){
+						for(var q = 0; q < cube.length; q++){
+							if( q != i && cube[q].z > cube[i].z)
+								return true;
+						}
+						return false;
+					}
+				}
+
+				//Edges
+				c.lineWidth = 2;
+				c.strokeStyle = "black";
+				if(!isVisible(0) || !isVisible(1))
+					c.dashedLine(_a, _b);
+				else
+					c.solidLine(_a, _b);
+
+				if(!isVisible(1) || !isVisible(2))
+					c.dashedLine(_b, _c);
+				else
+					c.solidLine(_b, _c);
+
+				if(!isVisible(2) || !isVisible(3))
+					c.dashedLine(_c, _d);
+				else
+					c.solidLine(_c, _d);
+
+				if(!isVisible(0) || !isVisible(3))
+					c.dashedLine(_a, _d);
+				else
+					c.solidLine(_a, _d);
+
+				if(!isVisible(4) || !isVisible(5))
+					c.dashedLine(_e, _f);
+				else
+					c.solidLine(_e, _f);
+
+				if(!isVisible(5) || !isVisible(6))
+					c.dashedLine(_f, _g);
+				else
+					c.solidLine(_f, _g);
+
+				if(!isVisible(6) || !isVisible(7))
+					c.dashedLine(_g, _h);
+				else
+					c.solidLine(_g, _h);
+
+				if(!isVisible(4) || !isVisible(7))
+					c.dashedLine(_e, _h);
+				else
+					c.solidLine(_e, _h);
+
+				if(!isVisible(0) || !isVisible(4))
+					c.dashedLine(_a, _e);
+				else
+					c.solidLine(_a, _e);
+
+				if(!isVisible(1) || !isVisible(5))
+					c.dashedLine(_b, _f);
+				else
+					c.solidLine(_b, _f);
+
+				if(!isVisible(2) || !isVisible(6))
+					c.dashedLine(_c, _g);
+				else
+					c.solidLine(_c, _g);
+
+				if(!isVisible(3) || !isVisible(7))
+					c.dashedLine(_d, _h);
+				else
+					c.solidLine(_d, _h);
+
+
+			}
+
+			paint();
+
+		</script>
+	</body>
+</html>

@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8" />
+	</head>
+	<body>
+		<input type="number" min="0" step="1" value="360" onchange="offset=parseFloat(this.value);draw();" /> °<br>
+		<input type="number" min="-1" max="24" step="1" id="time" value="0" /> h<br>
+		<input type="number" min="1" max="31" step="1" id="date" value="0" />.
+		<input type="number" min="1" max="12" step="1" id="month" value="0" />.
+		<input type="number" step="1" id="year" value="0" /><br><br>
+		<canvas id="canvas" style="border: 1px solid black;" width="1000" height="600"></canvas><br>
+		<div id="debug"></div>
+		<script type="text/javascript" src="astrostarchart.js"></script>
+		<script type="text/javascript">
+
+			var date =  new Date();
+			var UT = (date.getHours()+date.getTimezoneOffset()/60) + (date.getMinutes() + date.getSeconds()/60)/60; //hours
+			var LAT = 48.37084883333333; //degrees
+			var LONG = 17.147864833333333; //degrees
+			var D = J2000(date); //epoch J2000
+
+			document.getElementById("time").value = UT;
+			document.getElementById("date").value = date.getDate();
+			document.getElementById("month").value = date.getMonth()+1;
+			document.getElementById("year").value = date.getFullYear();
+
+			document.getElementById("date").onchange = function () {
+				date.setDate(this.value);
+				D = J2000(date);
+				draw();
+			}
+			document.getElementById("month").onchange = function () {
+				date.setMonth(parseInt(this.value)-1);
+				D = J2000(date);
+				draw();
+			}
+			document.getElementById("year").onchange = function () {
+				date.setFullYear(this.value);
+				D = J2000(date);
+				draw();
+			}
+			document.getElementById("time").onchange = function () {
+				if(this.value == "24"){
+					date.setDate(date.getDate()+1);
+					this.value = 0;
+					document.getElementById("date").value = date.getDate();
+					document.getElementById("month").value = date.getMonth()+1;
+					document.getElementById("year").value = date.getFullYear();
+				}
+				else if(parseFloat(this.value) < 0){
+					date.setDate(date.getDate()-1);
+					this.value = 24-1/3600;
+					document.getElementById("date").value = date.getDate();
+					document.getElementById("month").value = date.getMonth()+1;
+					document.getElementById("year").value = date.getFullYear();
+				}
+
+				UT = parseFloat(this.value);
+				var h = Math.floor(UT);
+				var m = Math.floor( (UT-h)*60 );
+				var s = Math.floor( (UT-h-m/60)*60*60 );
+				date.setHours(h);
+				date.setMinutes(m);
+				date.setSeconds(s);
+				D = J2000(date);
+				draw();
+			}
+
+			
+			var offset = 360;
+
+			var canvas = document.getElementById("canvas");
+			var c = canvas.getContext("2d");
+			c.scale(1.5,1.5);
+			c.translate(-canvas.width/6,0);
+
+			function draw(){
+				document.getElementById("debug").innerHTML = date;
+
+				c.fillStyle = "grey";
+				c.fillRect(0,0,canvas.width, canvas.height);
+
+				var xy = [];
+				for(var i = 0; i <= 90; i++){
+					xy[xy.length] = [360, i];
+				}
+				for(var i = 90; i >= 0; i--){
+					xy[xy.length] = [0, i];
+				}
+				xy[xy.length] = [kavrayskiy(360,0),0];
+				//sky:
+				var p = ( ((UT-5)%24) /24)*2*Math.PI; //-5 = offset
+				console.log(p);
+				c.fillStyle = "rgb(0," + Math.floor(128*(Math.sin(p)/2+0.5)) + "," + Math.floor(255*(Math.sin(p)/2+0.5)) + ")";
+				c.beginPath();
+				for(var i = 0; i < xy.length; i++){
+					var lon = xy[i][0];
+					var lat = xy[i][1];
+					var x = kavrayskiy(lon,lat);
+					var y = lat;
+					if(i == 0)
+						c.moveTo((x/360)*canvas.width,((y+90)/180)*canvas.height);
+					else{
+						c.lineTo((x/360)*canvas.width,canvas.height-((y+90)/180)*canvas.height);
+					}	
+				}
+				c.fill();
+
+				//stars:
+				c.fillStyle = "rgb(255,255,255)";
+				for(var i = 0; i < data.length; i++){
+					var coord = new coords(data[i][0],data[i][1], LONG, LAT, UT, D);
+					if(coord.getALT() > -1){
+						var x = ( (kavrayskiy( (coord.getAZ()+offset)%360 ,coord.getALT()) )/360)*canvas.width;
+						var y = ((coord.getALT()+90)/180)*canvas.height;
+						c.beginPath();
+						c.arc(x,canvas.height-y,Math.sqrt(Math.pow(2.512,-data[i][2]))*2,0,2*Math.PI);
+						c.fill();
+					}
+				}
+
+				//ground:
+				c.fillStyle = "rgb(50,100,0)";
+				c.beginPath();
+				for(var i = 0; i < xy.length; i++){
+					var lon = xy[i][0];
+					var lat = xy[i][1];
+					var x = kavrayskiy(lon,lat);
+					var y = lat;
+					if(i == 0)
+						c.moveTo((x/360)*canvas.width,((y+90)/180)*canvas.height);
+					else{
+						c.lineTo((x/360)*canvas.width,((y+90)/180)*canvas.height);
+					}	
+				}
+				c.fill();
+
+				c.strokeStyle = "rgb(255,0,0)";
+				c.fillStyle = "rgb(255,0,0)";
+				c.lineWidth = 2;
+				c.font = "20px Arial";
+
+				c.beginPath();
+				c.moveTo( (kavrayskiy( (0+offset)%360,0 )/360)*canvas.width,canvas.height/2);
+				c.lineTo( (kavrayskiy( (0+offset)%360,0 )/360)*canvas.width,canvas.height/2+20);
+				c.stroke();
+				c.fillText("N", (kavrayskiy( (0+offset)%360,0 )/360)*canvas.width-7,canvas.height/2+50);
+
+				c.beginPath();
+				c.moveTo( (kavrayskiy( (90+offset)%360,0 )/360)*canvas.width,canvas.height/2);
+				c.lineTo( (kavrayskiy( (90+offset)%360,0 )/360)*canvas.width,canvas.height/2+20);
+				c.stroke();
+				c.fillText("E", (kavrayskiy( (90+offset)%360,0 )/360)*canvas.width-7,canvas.height/2+50);
+
+				c.beginPath();
+				c.moveTo( (kavrayskiy( (180+offset)%360,0 )/360)*canvas.width,canvas.height/2);
+				c.lineTo( (kavrayskiy( (180+offset)%360,0 )/360)*canvas.width,canvas.height/2+20);
+				c.stroke();
+				c.fillText("S", (kavrayskiy( (180+offset)%360,0 )/360)*canvas.width-7,canvas.height/2+50);
+
+				c.beginPath();
+				c.moveTo( (kavrayskiy( (270+offset)%360,0 )/360)*canvas.width,canvas.height/2);
+				c.lineTo( (kavrayskiy( (270+offset)%360,0 )/360)*canvas.width,canvas.height/2+20);
+				c.stroke();
+				c.fillText("W", (kavrayskiy( (270+offset)%360,0 )/360)*canvas.width-7,canvas.height/2+50);
+
+			}
+			draw();
+
+			function J2000 (date) {
+				var j = new Date(2000, 0, 1, 11, 58, 55, 816);
+				var ms = (date.getTime()+date.getTimezoneOffset()*1000) - j.getTime();
+				return ms/(1000*60*60*24);
+			}
+
+
+			function coords (ra, dec, long, lat, ut, d) {
+
+				this.RA = ra;
+				this.DEC = dec;
+				this.UT = ut;
+				this.LAT = lat;
+				this.LONG = long;
+				this.D = d;
+
+				this.getLST = function () {
+					var LST = (100.46 + 0.985647 * this.D + this.LONG + 15*this.UT)%360;
+					if(LST < 0)
+						return 360+LST;
+					else
+						return LST;
+				}
+
+				this.getHA = function () {
+					return this.getLST() - this.RA;
+				}
+
+				this.getALT = function () {
+					return Math.asin( Math.sin(this.DEC*(Math.PI/180))*Math.sin(this.LAT*(Math.PI/180)) + Math.cos(this.DEC*(Math.PI/180))*Math.cos(this.LAT*(Math.PI/180))*Math.cos(this.getHA()*(Math.PI/180))  )*(180/Math.PI);
+				}
+
+				this.getAZ = function () {
+					var A = ( Math.sin(this.DEC*(Math.PI/180)) - Math.sin(this.getALT()*(Math.PI/180))*Math.sin(this.LAT*(Math.PI/180)) ) / ( Math.cos(this.getALT()*(Math.PI/180))*Math.cos(this.LAT*(Math.PI/180)) );
+					A = Math.acos(A)*(180/Math.PI);
+					if(Math.sin(this.getHA()*(Math.PI/180)) < 0)
+						return A;
+					else
+						return 360 - A;
+				}
+
+			}
+
+			function kavrayskiy (lon, lat) {
+				lon -= 180;
+				return 3/(2*180)*lon*Math.sqrt( (180*180)/3 - lat*lat ) + 180;
+			}
+
+
+		</script>
+
+	</body>
+</html>
